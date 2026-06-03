@@ -1,0 +1,36 @@
+{
+  "name": "backend-monitoring-listrik",
+  "version": "1.0.0",
+  "description": "Backend Express untuk Sistem Monitoring dan Prediksi Konsumsi Listrik berbasis ESP32, PZEM, Voice AI, dan LSTM",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "test": "NODE_ENV=test jest --runInBand",
+    "test:watch": "NODE_ENV=test jest --watch"
+  },
+  "keywords": [
+    "express",
+    "postgresql",
+    "esp32",
+    "pzem004t",
+    "iot",
+    "listrik"
+  ],
+  "author": "Untara Eka Saputra",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.2.2"
+  }
+}

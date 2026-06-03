@@ -1,0 +1,67 @@
+# =========================
+# Node.js
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.local
+.env.development.local
+.env.test
+.env.test.local
+.env.production.local
+
+# Kalau kamu mau contoh env tetap ikut Git
+!.env.example
+!.env.test.example
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# Build / Coverage
+# =========================
+dist/
+build/
+coverage/
+
+# =========================
+# Jest
+# =========================
+jest-cache/
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Editor
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Database / Temporary Files
+# =========================
+*.sqlite
+*.sqlite3
+*.db
+tmp/
+temp/
+
+# =========================
+# Uploads / Generated Files
+# =========================
+uploads/
+public/uploads/
