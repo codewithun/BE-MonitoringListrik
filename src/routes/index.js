@@ -6,9 +6,11 @@ const relayRoutes = require('./relay.routes');
 const prediksiRoutes = require('./prediksi.routes');
 const ringkasanRoutes = require('./ringkasan.routes');
 const deviceRoutes = require('./device.routes');
+const authRoutes = require('./auth.routes');
 
 const router = express.Router();
 
+router.use('/auth', authRoutes);
 router.use('/rumah', rumahRoutes);
 router.use('/perangkat', perangkatRoutes);
 router.use('/data-listrik', dataListrikRoutes);
