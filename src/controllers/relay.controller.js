@@ -5,7 +5,7 @@ async function updateRelay(deviceId, relay, sumber) {
   const result = await pool.query(
     `UPDATE perangkat
      SET status_relay = $1, status_online = TRUE, terakhir_online = NOW(), updated_at = NOW()
-     WHERE device_id = $2
+     WHERE device_id = $2 OR id::text = $2
      RETURNING device_id, nama_perangkat, status_relay, status_online, terakhir_online`,
     [relay, deviceId]
   );
@@ -30,14 +30,19 @@ const getRelayState = asyncHandler(async (req, res) => {
   const finalDeviceId = deviceId || device_id;
 
   if (!finalDeviceId) {
-    res.status(400);
-    throw new Error('Query deviceId wajib diisi');
+    const result = await pool.query(
+      `SELECT device_id, nama_perangkat, status_relay AS relay, status_online, terakhir_online
+       FROM perangkat
+       ORDER BY created_at DESC`
+    );
+
+    return res.json({ success: true, data: result.rows });
   }
 
   const result = await pool.query(
     `SELECT device_id, nama_perangkat, status_relay AS relay, status_online, terakhir_online
      FROM perangkat
-     WHERE device_id = $1`,
+     WHERE device_id = $1 OR id::text = $1`,
     [finalDeviceId]
   );
 
