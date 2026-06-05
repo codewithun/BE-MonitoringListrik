@@ -30,6 +30,14 @@ describe('API Monitoring Listrik', () => {
     expect(res.body.success).toBe(true);
   });
 
+  test('GET /api/users harus mengembalikan daftar pengguna', async () => {
+    const res = await request(app).get('/api/users');
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
   test('POST /api/rumah harus membuat rumah baru', async () => {
     const res = await request(app)
       .post('/api/rumah')
