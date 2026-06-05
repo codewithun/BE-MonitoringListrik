@@ -30,6 +30,162 @@ const getUsers = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result.rows });
 });
 
+const createUser = asyncHandler(async (req, res) => {
+  const {
+    username,
+    name,
+    email,
+    password,
+    role = 'user',
+    aktif = true,
+    rumah_id,
+  } = req.body;
+
+  const finalUsername = String(username || name || '').trim();
+  const finalEmail = String(email || '').trim().toLowerCase();
+  const finalPassword = String(password || '');
+  const finalRole = role === 'admin' ? 'admin' : 'user';
+
+  if (!finalUsername || !finalEmail || !finalPassword) {
+    res.status(400);
+    throw new Error('username, email, dan password wajib diisi');
+  }
+
+  if (finalPassword.length < 8) {
+    res.status(400);
+    throw new Error('password minimal 8 karakter');
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `INSERT INTO pengguna (username, email, password_hash, role, aktif)
+       VALUES ($1, $2, crypt($3, gen_salt('bf')), $4, $5)
+       RETURNING id, username, email, role, aktif, created_at, updated_at`,
+      [finalUsername, finalEmail, finalPassword, finalRole, Boolean(aktif)]
+    );
+
+    if (rumah_id) {
+      await client.query(
+        `INSERT INTO akses_rumah (pengguna_id, rumah_id)
+         VALUES ($1, $2)
+         ON CONFLICT (pengguna_id, rumah_id) DO NOTHING`,
+        [result.rows[0].id, rumah_id]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const {
+    username,
+    name,
+    email,
+    password,
+    role,
+    aktif,
+    rumah_id,
+  } = req.body;
+
+  const finalUsername =
+    username === undefined && name === undefined
+      ? undefined
+      : String(username || name || '').trim();
+  const finalEmail =
+    email === undefined ? undefined : String(email || '').trim().toLowerCase();
+  const finalRole =
+    role === undefined ? undefined : role === 'admin' ? 'admin' : 'user';
+  const finalPassword =
+    password === undefined || password === '' ? undefined : String(password);
+
+  if (finalPassword !== undefined && finalPassword.length < 8) {
+    res.status(400);
+    throw new Error('password minimal 8 karakter');
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `UPDATE pengguna
+       SET
+        username = COALESCE($1, username),
+        email = COALESCE($2, email),
+        role = COALESCE($3, role),
+        aktif = COALESCE($4, aktif),
+        password_hash = CASE
+          WHEN $5::text IS NULL THEN password_hash
+          ELSE crypt($5, gen_salt('bf'))
+        END,
+        updated_at = NOW()
+       WHERE id = $6
+       RETURNING id, username, email, role, aktif, created_at, updated_at`,
+      [finalUsername, finalEmail, finalRole, aktif, finalPassword, id]
+    );
+
+    if (result.rowCount === 0) {
+      res.status(404);
+      throw new Error('User tidak ditemukan');
+    }
+
+    if (rumah_id !== undefined) {
+      await client.query('DELETE FROM akses_rumah WHERE pengguna_id = $1', [id]);
+
+      if (rumah_id) {
+        await client.query(
+          `INSERT INTO akses_rumah (pengguna_id, rumah_id)
+           VALUES ($1, $2)
+           ON CONFLICT (pengguna_id, rumah_id) DO NOTHING`,
+          [id, rumah_id]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+});
+
+const deleteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(
+    `DELETE FROM pengguna WHERE id = $1 RETURNING id`,
+    [id]
+  );
+
+  if (result.rowCount === 0) {
+    res.status(404);
+    throw new Error('User tidak ditemukan');
+  }
+
+  res.json({ success: true, message: 'User berhasil dihapus' });
+});
+
 module.exports = {
   getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
 };

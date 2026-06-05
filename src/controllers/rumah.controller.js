@@ -74,26 +74,52 @@ const createRumah = asyncHandler(async (req, res) => {
 
 const updateRumah = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { nama_rumah, alamat, deskripsi } = req.body;
+  const { nama_rumah, alamat, deskripsi, pengguna_id } = req.body;
 
-  const result = await pool.query(
-    `UPDATE rumah
-     SET
-      nama_rumah = COALESCE($1, nama_rumah),
-      alamat = COALESCE($2, alamat),
-      deskripsi = COALESCE($3, deskripsi),
-      updated_at = NOW()
-     WHERE id = $4
-     RETURNING *`,
-    [nama_rumah, alamat, deskripsi, id]
-  );
+  const client = await pool.connect();
 
-  if (result.rowCount === 0) {
-    res.status(404);
-    throw new Error('Rumah tidak ditemukan');
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `UPDATE rumah
+       SET
+        nama_rumah = COALESCE($1, nama_rumah),
+        alamat = COALESCE($2, alamat),
+        deskripsi = COALESCE($3, deskripsi),
+        updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [nama_rumah, alamat, deskripsi, id]
+    );
+
+    if (result.rowCount === 0) {
+      res.status(404);
+      throw new Error('Rumah tidak ditemukan');
+    }
+
+    if (pengguna_id !== undefined) {
+      await client.query('DELETE FROM akses_rumah WHERE rumah_id = $1', [id]);
+
+      if (pengguna_id) {
+        await client.query(
+          `INSERT INTO akses_rumah (pengguna_id, rumah_id)
+           VALUES ($1, $2)
+           ON CONFLICT (pengguna_id, rumah_id) DO NOTHING`,
+          [pengguna_id, id]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
-
-  res.json({ success: true, data: result.rows[0] });
 });
 
 const deleteRumah = asyncHandler(async (req, res) => {
