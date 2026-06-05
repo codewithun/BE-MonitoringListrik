@@ -19,6 +19,7 @@ const getPerangkat = asyncHandler(async (req, res) => {
       p.rumah_id,
       r.nama_rumah,
       p.nama_perangkat,
+      p.nama_beban,
       p.status_relay,
       p.versi_firmware,
       p.status_online,
@@ -41,6 +42,7 @@ const createPerangkat = asyncHandler(async (req, res) => {
     device_id,
     rumah_id,
     nama_perangkat,
+    nama_beban,
     versi_firmware,
   } = req.body;
 
@@ -53,12 +55,13 @@ const createPerangkat = asyncHandler(async (req, res) => {
 
   const result = await pool.query(
     `INSERT INTO perangkat
-      (device_id, rumah_id, nama_perangkat, versi_firmware, status_online, terakhir_online)
-     VALUES ($1, $2, $3, $4, TRUE, NOW())
+      (device_id, rumah_id, nama_perangkat, nama_beban, versi_firmware, status_online, terakhir_online)
+     VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
      ON CONFLICT (device_id)
      DO UPDATE SET
       rumah_id = COALESCE(EXCLUDED.rumah_id, perangkat.rumah_id),
       nama_perangkat = COALESCE(EXCLUDED.nama_perangkat, perangkat.nama_perangkat),
+      nama_beban = COALESCE(EXCLUDED.nama_beban, perangkat.nama_beban),
       versi_firmware = COALESCE(EXCLUDED.versi_firmware, perangkat.versi_firmware),
       status_online = TRUE,
       terakhir_online = NOW(),
@@ -68,6 +71,7 @@ const createPerangkat = asyncHandler(async (req, res) => {
       finalDeviceId,
       rumah_id || null,
       nama_perangkat || `Perangkat ${finalDeviceId}`,
+      nama_beban || null,
       versi_firmware || null,
     ]
   );
@@ -80,6 +84,7 @@ const updatePerangkat = asyncHandler(async (req, res) => {
   const {
     rumah_id,
     nama_perangkat,
+    nama_beban,
     status_relay,
     versi_firmware,
     status_online,
@@ -90,13 +95,22 @@ const updatePerangkat = asyncHandler(async (req, res) => {
      SET
       rumah_id = COALESCE($1, rumah_id),
       nama_perangkat = COALESCE($2, nama_perangkat),
-      status_relay = COALESCE($3, status_relay),
-      versi_firmware = COALESCE($4, versi_firmware),
-      status_online = COALESCE($5, status_online),
+      nama_beban = COALESCE($3, nama_beban),
+      status_relay = COALESCE($4, status_relay),
+      versi_firmware = COALESCE($5, versi_firmware),
+      status_online = COALESCE($6, status_online),
       updated_at = NOW()
-     WHERE id = $6
+     WHERE id = $7
      RETURNING *`,
-    [rumah_id, nama_perangkat, status_relay, versi_firmware, status_online, id]
+    [
+      rumah_id,
+      nama_perangkat,
+      nama_beban,
+      status_relay,
+      versi_firmware,
+      status_online,
+      id,
+    ]
   );
 
   if (result.rowCount === 0) {

@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS perangkat (
   device_id VARCHAR(50) UNIQUE NOT NULL,
   rumah_id UUID REFERENCES rumah(id) ON DELETE SET NULL,
   nama_perangkat VARCHAR(150) NOT NULL,
+  nama_beban VARCHAR(150),
   status_relay BOOLEAN DEFAULT FALSE,
   versi_firmware VARCHAR(50),
   status_online BOOLEAN DEFAULT FALSE,
@@ -69,6 +70,9 @@ CREATE TABLE IF NOT EXISTS perangkat (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE perangkat
+ADD COLUMN IF NOT EXISTS nama_beban VARCHAR(150);
 
 CREATE INDEX IF NOT EXISTS idx_perangkat_device_id ON perangkat(device_id);
 CREATE INDEX IF NOT EXISTS idx_perangkat_rumah ON perangkat(rumah_id);

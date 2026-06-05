@@ -82,12 +82,14 @@ describe('API Monitoring Listrik', () => {
         deviceId,
         rumah_id: rumahId,
         nama_perangkat: 'Perangkat Test',
+        nama_beban: 'Lampu Test',
         versi_firmware: 'test-1.0.0',
       });
 
     expect(res.statusCode).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.device_id).toBe(deviceId);
+    expect(res.body.data.nama_beban).toBe('Lampu Test');
 
     perangkatId = res.body.data.id;
   });
