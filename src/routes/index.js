@@ -8,6 +8,7 @@ const ringkasanRoutes = require('./ringkasan.routes');
 const deviceRoutes = require('./device.routes');
 const authRoutes = require('./auth.routes');
 const userRoutes = require('./user.routes');
+const tarifListrikRoutes = require('./tarifListrik.routes');
 
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.use('/', relayRoutes);
 router.use('/prediksi-bulanan', prediksiRoutes);
 router.use('/ringkasan-bulanan', ringkasanRoutes);
 router.use('/device', deviceRoutes);
+router.use('/tarif-listrik', tarifListrikRoutes);
 
 module.exports = router;

@@ -50,8 +50,22 @@ CREATE TABLE IF NOT EXISTS tarif_listrik (
   nama_tarif VARCHAR(100),
   tegangan INTEGER,
   harga_per_kwh NUMERIC(12,2) NOT NULL,
+  status VARCHAR(20) DEFAULT 'Aktif',
+  catatan TEXT,
+  updated_at TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE tarif_listrik
+ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Aktif';
+
+ALTER TABLE tarif_listrik
+ADD COLUMN IF NOT EXISTS catatan TEXT;
+
+ALTER TABLE tarif_listrik
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+
+CREATE INDEX IF NOT EXISTS idx_tarif_listrik_rumah ON tarif_listrik(rumah_id);
 
 -- =====================================================
 -- PERANGKAT

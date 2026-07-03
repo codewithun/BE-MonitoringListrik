@@ -7,9 +7,14 @@ const deviceId = `TEST_${unique}`;
 
 let rumahId;
 let perangkatId;
+let tarifId;
 
 afterAll(async () => {
   try {
+    if (tarifId) {
+      await pool.query('DELETE FROM tarif_listrik WHERE id = $1', [tarifId]);
+    }
+
     if (deviceId) {
       await pool.query('DELETE FROM perangkat WHERE device_id = $1', [deviceId]);
     }
@@ -101,6 +106,50 @@ describe('API Monitoring Listrik', () => {
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.data)).toBe(true);
     expect(res.body.data.some((item) => item.device_id === deviceId)).toBe(true);
+  });
+
+  test('POST /api/tarif-listrik harus membuat tarif per rumah', async () => {
+    const res = await request(app)
+      .post('/api/tarif-listrik')
+      .send({
+        rumah_id: rumahId,
+        nama_tarif: 'Tarif Test',
+        harga_per_kwh: 1444.7,
+        status: 'Aktif',
+        catatan: 'Tarif untuk automated test',
+      });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.rumah_id).toBe(rumahId);
+    expect(Number(res.body.data.harga_per_kwh)).toBe(1444.7);
+
+    tarifId = res.body.data.id;
+  });
+
+  test('GET /api/tarif-listrik harus membawa data rumah dan jumlah perangkat', async () => {
+    const res = await request(app).get(`/api/tarif-listrik?rumahId=${rumahId}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(Array.isArray(res.body.rumah)).toBe(true);
+    expect(res.body.data.some((item) => item.id === tarifId)).toBe(true);
+    expect(res.body.data[0]).toHaveProperty('jumlah_perangkat');
+  });
+
+  test('PUT /api/tarif-listrik/:id harus mengubah tarif', async () => {
+    const res = await request(app)
+      .put(`/api/tarif-listrik/${tarifId}`)
+      .send({
+        nama_tarif: 'Tarif Test Update',
+        harga_per_kwh: 1500,
+      });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.nama_tarif).toBe('Tarif Test Update');
+    expect(Number(res.body.data.harga_per_kwh)).toBe(1500);
   });
 
   test('POST /api/device/register harus register/update perangkat ESP32', async () => {
@@ -250,6 +299,15 @@ describe('API Monitoring Listrik', () => {
     expect(res.body.success).toBe(true);
 
     perangkatId = null;
+  });
+
+  test('DELETE /api/tarif-listrik/:id harus menghapus tarif', async () => {
+    const res = await request(app).delete(`/api/tarif-listrik/${tarifId}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    tarifId = null;
   });
 
   test('DELETE /api/rumah/:id harus menghapus rumah', async () => {
