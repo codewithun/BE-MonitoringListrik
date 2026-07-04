@@ -53,19 +53,23 @@ const createPerangkat = asyncHandler(async (req, res) => {
     throw new Error('deviceId wajib diisi');
   }
 
+  const existingDevice = await pool.query(
+    `SELECT id, rumah_id, nama_perangkat
+     FROM perangkat
+     WHERE device_id = $1
+     LIMIT 1`,
+    [finalDeviceId]
+  );
+
+  if (existingDevice.rowCount > 0) {
+    res.status(409);
+    throw new Error('ID alat sudah dipakai');
+  }
+
   const result = await pool.query(
     `INSERT INTO perangkat
       (device_id, rumah_id, nama_perangkat, nama_beban, versi_firmware, status_online, terakhir_online)
      VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
-     ON CONFLICT (device_id)
-     DO UPDATE SET
-      rumah_id = COALESCE(EXCLUDED.rumah_id, perangkat.rumah_id),
-      nama_perangkat = COALESCE(EXCLUDED.nama_perangkat, perangkat.nama_perangkat),
-      nama_beban = COALESCE(EXCLUDED.nama_beban, perangkat.nama_beban),
-      versi_firmware = COALESCE(EXCLUDED.versi_firmware, perangkat.versi_firmware),
-      status_online = TRUE,
-      terakhir_online = NOW(),
-      updated_at = NOW()
      RETURNING *`,
     [
       finalDeviceId,

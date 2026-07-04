@@ -99,6 +99,33 @@ describe('API Monitoring Listrik', () => {
     perangkatId = res.body.data.id;
   });
 
+  test('POST /api/perangkat harus menolak device ID yang sudah dipakai', async () => {
+    const secondHouseRes = await request(app)
+      .post('/api/rumah')
+      .send({
+        nama_rumah: `Rumah Test 2 ${unique}`,
+        alamat: 'Alamat Test 2',
+        deskripsi: 'Data rumah kedua untuk automated test',
+      });
+
+    expect(secondHouseRes.statusCode).toBe(201);
+    expect(secondHouseRes.body.success).toBe(true);
+
+    const res = await request(app)
+      .post('/api/perangkat')
+      .send({
+        deviceId,
+        rumah_id: secondHouseRes.body.data.id,
+        nama_perangkat: 'Perangkat Duplikat Test',
+        nama_beban: 'Lampu Duplikat Test',
+        versi_firmware: 'test-1.0.0',
+      });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toContain('ID alat sudah dipakai');
+  });
+
   test('GET /api/perangkat harus mengembalikan daftar perangkat', async () => {
     const res = await request(app).get(`/api/perangkat?rumahId=${rumahId}`);
 
