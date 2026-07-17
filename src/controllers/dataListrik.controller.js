@@ -53,12 +53,37 @@ const createDataListrik = asyncHandler(async (req, res) => {
     ]
   );
 
-  if (typeof status_relay === 'boolean') {
+  let finalRelayStatus = status_relay;
+  
+  // PROTEKSI BATAS DAYA
+  if (daya !== undefined && daya !== null) {
+    const deviceRecord = await pool.query(
+      `SELECT batas_daya, batas_daya_aktif, status_relay 
+       FROM perangkat WHERE device_id = $1`,
+      [finalDeviceId]
+    );
+    
+    if (deviceRecord.rowCount > 0) {
+      const { batas_daya, batas_daya_aktif, status_relay: currentRelay } = deviceRecord.rows[0];
+      
+      // Jika aktif dan melebihi batas, matikan relay
+      if (batas_daya_aktif && Number(daya) > Number(batas_daya) && currentRelay !== false) {
+        finalRelayStatus = false; // Override status to false
+        
+        await pool.query(
+          `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
+          [finalDeviceId, false, 'api']
+        );
+      }
+    }
+  }
+
+  if (typeof finalRelayStatus === 'boolean') {
     await pool.query(
       `UPDATE perangkat
        SET status_relay = $1, status_online = TRUE, terakhir_online = NOW(), updated_at = NOW()
        WHERE device_id = $2`,
-      [status_relay, finalDeviceId]
+      [finalRelayStatus, finalDeviceId]
     );
   }
 

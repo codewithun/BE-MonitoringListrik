@@ -24,6 +24,12 @@ const getPerangkat = asyncHandler(async (req, res) => {
       p.versi_firmware,
       p.status_online,
       p.terakhir_online,
+      p.batas_daya,
+      p.batas_daya_aktif,
+      p.jadwal_aktif,
+      p.jadwal_waktu,
+      p.jadwal_tanggal,
+      p.jadwal_aksi,
       p.created_at,
       p.updated_at
     FROM perangkat p
@@ -92,6 +98,12 @@ const updatePerangkat = asyncHandler(async (req, res) => {
     status_relay,
     versi_firmware,
     status_online,
+    batas_daya,
+    batas_daya_aktif,
+    jadwal_aktif,
+    jadwal_waktu,
+    jadwal_tanggal,
+    jadwal_aksi,
   } = req.body;
 
   const result = await pool.query(
@@ -103,8 +115,14 @@ const updatePerangkat = asyncHandler(async (req, res) => {
       status_relay = COALESCE($4, status_relay),
       versi_firmware = COALESCE($5, versi_firmware),
       status_online = COALESCE($6, status_online),
+      batas_daya = COALESCE($7, batas_daya),
+      batas_daya_aktif = COALESCE($8, batas_daya_aktif),
+      jadwal_aktif = COALESCE($9, jadwal_aktif),
+      jadwal_waktu = COALESCE($10, jadwal_waktu),
+      jadwal_tanggal = COALESCE($11, jadwal_tanggal),
+      jadwal_aksi = COALESCE($12, jadwal_aksi),
       updated_at = NOW()
-     WHERE id = $7
+     WHERE id = $13
      RETURNING *`,
     [
       rumah_id,
@@ -113,6 +131,12 @@ const updatePerangkat = asyncHandler(async (req, res) => {
       status_relay,
       versi_firmware,
       status_online,
+      batas_daya,
+      batas_daya_aktif,
+      jadwal_aktif,
+      jadwal_waktu,
+      jadwal_tanggal,
+      jadwal_aksi,
       id,
     ]
   );

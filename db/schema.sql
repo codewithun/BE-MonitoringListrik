@@ -91,6 +91,14 @@ ADD COLUMN IF NOT EXISTS nama_beban VARCHAR(150);
 CREATE INDEX IF NOT EXISTS idx_perangkat_device_id ON perangkat(device_id);
 CREATE INDEX IF NOT EXISTS idx_perangkat_rumah ON perangkat(rumah_id);
 
+ALTER TABLE perangkat
+ADD COLUMN IF NOT EXISTS batas_daya NUMERIC(10,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS batas_daya_aktif BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS jadwal_aktif BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS jadwal_waktu VARCHAR(10),
+ADD COLUMN IF NOT EXISTS jadwal_tanggal VARCHAR(20),
+ADD COLUMN IF NOT EXISTS jadwal_aksi VARCHAR(10);
+
 -- =====================================================
 -- DATA LISTRIK REALTIME RAW PZEM
 -- RETENSI 30 HARI
