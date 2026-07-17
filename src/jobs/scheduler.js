@@ -7,13 +7,15 @@ function startScheduler() {
   // Run every minute at second 0
   cron.schedule('* * * * *', async () => {
     try {
-      // Get current time in local timezone (assuming server timezone is correct)
-      // or we can format it manually if timezone is an issue.
+      // Gunakan timezone Asia/Jakarta (WIB) agar sama dengan input pengguna di frontend
       const now = new Date();
-      // Format YYYY-MM-DD
-      const currentDate = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-      // Format HH:mm
-      const currentTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      const optionsDate = { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' };
+      const optionsTime = { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false };
+      
+      // en-CA menghasilkan format YYYY-MM-DD
+      const currentDate = new Intl.DateTimeFormat('en-CA', optionsDate).format(now);
+      // en-GB menghasilkan format HH:mm
+      const currentTime = new Intl.DateTimeFormat('en-GB', optionsTime).format(now);
       
       const result = await pool.query(
         `SELECT id, device_id, jadwal_aksi 
