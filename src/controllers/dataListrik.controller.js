@@ -55,8 +55,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
 
   let finalRelayStatus = status_relay;
   let deviceRecord = null;
-  
-  // FETCH CURRENT DEVICE SETTINGS (Mencegah hardware menimpa perintah Scheduler/Web)
+
   deviceRecord = await pool.query(
     `SELECT batas_daya, batas_daya_aktif, status_relay 
      FROM perangkat WHERE device_id = $1`,
@@ -64,17 +63,13 @@ const createDataListrik = asyncHandler(async (req, res) => {
   );
 
   if (deviceRecord.rowCount > 0) {
-    const { batas_daya, batas_daya_aktif, status_relay: dbRelay } = deviceRecord.rows[0];
-    
-    // Gunakan state dari database (Web/Scheduler) sebagai yang paling benar
-    finalRelayStatus = dbRelay;
-    
+    const { batas_daya, batas_daya_aktif } = deviceRecord.rows[0];
+
     // PROTEKSI BATAS DAYA
     if (daya !== undefined && daya !== null) {
-      // Jika aktif dan melebihi batas, matikan relay
       if (batas_daya_aktif && Number(daya) > Number(batas_daya) && finalRelayStatus !== false) {
-        finalRelayStatus = false; // Override status to false
-        
+        finalRelayStatus = false; 
+
         await pool.query(
           `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
           [finalDeviceId, false, 'api']
@@ -94,8 +89,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
 
   res.status(201).json({ 
     success: true, 
-    data: result.rows[0],
-    relay: finalRelayStatus // Kirim perintah balik ke ESP32 agar mematikan relay
+    data: result.rows[0]
   });
 });
 
