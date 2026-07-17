@@ -35,6 +35,31 @@ const createDataListrik = asyncHandler(async (req, res) => {
   }
 
   await ensureDeviceExists(finalDeviceId, Boolean(status_relay));
+  let finalRelayStatus = status_relay;
+  let deviceRecord = await pool.query(
+    `SELECT batas_daya, batas_daya_aktif, status_relay 
+     FROM perangkat WHERE device_id = $1`,
+    [finalDeviceId]
+  );
+
+  if (deviceRecord.rowCount > 0) {
+    const { batas_daya, batas_daya_aktif, status_relay: dbRelay } = deviceRecord.rows[0];
+    
+    // TAMENG PELINDUNG: Paksa finalRelayStatus menggunakan data dari Database!
+    finalRelayStatus = dbRelay;
+
+    // PROTEKSI BATAS DAYA
+    if (daya !== undefined && daya !== null) {
+      if (batas_daya_aktif && Number(daya) > Number(batas_daya) && finalRelayStatus !== false) {
+        finalRelayStatus = false; 
+
+        await pool.query(
+          `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
+          [finalDeviceId, false, 'api']
+        );
+      }
+    }
+  }
 
   const result = await pool.query(
     `INSERT INTO data_listrik
@@ -49,34 +74,9 @@ const createDataListrik = asyncHandler(async (req, res) => {
       energi ?? null,
       frekuensi ?? null,
       faktor_daya ?? null,
-      status_relay ?? null,
+      finalRelayStatus ?? null,
     ]
   );
-
-  let finalRelayStatus = status_relay;
-  let deviceRecord = null;
-
-  deviceRecord = await pool.query(
-    `SELECT batas_daya, batas_daya_aktif, status_relay 
-     FROM perangkat WHERE device_id = $1`,
-    [finalDeviceId]
-  );
-
-  if (deviceRecord.rowCount > 0) {
-    const { batas_daya, batas_daya_aktif } = deviceRecord.rows[0];
-
-    // PROTEKSI BATAS DAYA
-    if (daya !== undefined && daya !== null) {
-      if (batas_daya_aktif && Number(daya) > Number(batas_daya) && finalRelayStatus !== false) {
-        finalRelayStatus = false; 
-
-        await pool.query(
-          `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
-          [finalDeviceId, false, 'api']
-        );
-      }
-    }
-  }
 
   if (typeof finalRelayStatus === 'boolean') {
     await pool.query(
