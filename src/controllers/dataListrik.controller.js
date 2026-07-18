@@ -8,8 +8,7 @@ async function ensureDeviceExists(deviceId, statusRelay = false) {
      ON CONFLICT (device_id)
      DO UPDATE SET
       status_online = TRUE,
-      terakhir_online = NOW(),
-      updated_at = NOW()`,
+      terakhir_online = NOW()`,
     [deviceId, `Perangkat ${deviceId}`, statusRelay]
   );
 }
@@ -71,7 +70,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
 
         await pool.query(
           `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
-          [finalDeviceId, false, 'api']
+          [finalDeviceId, false, 'alat']
         );
       }
     }
@@ -97,7 +96,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
   if (typeof finalRelayStatus === 'boolean') {
     await pool.query(
       `UPDATE perangkat
-       SET status_relay = $1, status_online = TRUE, terakhir_online = NOW(), updated_at = NOW()
+       SET status_relay = $1, status_online = TRUE, terakhir_online = NOW()
        WHERE device_id = $2`,
       [finalRelayStatus, finalDeviceId]
     );

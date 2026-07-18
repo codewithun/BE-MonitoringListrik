@@ -2,7 +2,8 @@ const pool = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 
 async function updateRelay(deviceId, relay, sumber) {
-  if (sumber === 'alat') {
+  // Hanya bypass Debounce jika sumbernya adalah 'web' (User klik di UI)
+  if (sumber !== 'web') {
     const check = await pool.query(
       `SELECT updated_at FROM perangkat WHERE device_id = $1 OR id::text = $1`,
       [deviceId]
@@ -12,7 +13,8 @@ async function updateRelay(deviceId, relay, sumber) {
       const lastUpdate = new Date(check.rows[0].updated_at).getTime();
       const now = new Date().getTime();
       
-      if (now - lastUpdate < 3000) {
+      // Jika web baru saja mengubahnya dalam 4 detik terakhir, abaikan request dari ESP32
+      if (now - lastUpdate < 4000) {
         const result = await pool.query(
           `UPDATE perangkat
            SET status_online = TRUE, terakhir_online = NOW()
