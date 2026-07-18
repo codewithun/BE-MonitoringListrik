@@ -2,6 +2,29 @@ const pool = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 
 async function updateRelay(deviceId, relay, sumber) {
+  if (sumber === 'alat') {
+    const check = await pool.query(
+      `SELECT updated_at FROM perangkat WHERE device_id = $1 OR id::text = $1`,
+      [deviceId]
+    );
+
+    if (check.rowCount > 0) {
+      const lastUpdate = new Date(check.rows[0].updated_at).getTime();
+      const now = new Date().getTime();
+      
+      if (now - lastUpdate < 3000) {
+        const result = await pool.query(
+          `UPDATE perangkat
+           SET status_online = TRUE, terakhir_online = NOW()
+           WHERE device_id = $1 OR id::text = $1
+           RETURNING device_id, nama_perangkat, status_relay, status_online, terakhir_online`,
+          [deviceId]
+        );
+        return result.rows[0];
+      }
+    }
+  }
+
   const result = await pool.query(
     `UPDATE perangkat
      SET status_relay = $1, status_online = TRUE, terakhir_online = NOW(), updated_at = NOW()
