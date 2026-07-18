@@ -37,16 +37,32 @@ const createDataListrik = asyncHandler(async (req, res) => {
   await ensureDeviceExists(finalDeviceId, Boolean(status_relay));
   let finalRelayStatus = status_relay;
   let deviceRecord = await pool.query(
-    `SELECT batas_daya, batas_daya_aktif, status_relay 
+    `SELECT batas_daya, batas_daya_aktif, status_relay, updated_at 
      FROM perangkat WHERE device_id = $1`,
     [finalDeviceId]
   );
 
   if (deviceRecord.rowCount > 0) {
-    const { batas_daya, batas_daya_aktif, status_relay: dbRelay } = deviceRecord.rows[0];
+    const { batas_daya, batas_daya_aktif, status_relay: dbRelay, updated_at } = deviceRecord.rows[0];
     
-    // TAMENG PELINDUNG: Paksa finalRelayStatus menggunakan data dari Database!
-    finalRelayStatus = dbRelay;
+    // SMART SHIELD (DEBOUNCE): 
+    // Cek apakah Web baru saja mengubah status dalam 4 detik terakhir
+    const lastUpdate = new Date(updated_at).getTime();
+    const now = new Date().getTime();
+    const isWebRecentlyUpdated = (now - lastUpdate) < 4000;
+
+    if (isWebRecentlyUpdated) {
+      // Jika web baru saja mengubahnya, ABAIKAN status_relay dari ESP32 untuk menghindari Race Condition
+      finalRelayStatus = dbRelay;
+    } else {
+      // Jika sudah lebih dari 4 detik, berarti ESP32 mengirim status karena tombol fisiknya ditekan!
+      // Biarkan finalRelayStatus mengikuti apa yang dikirim ESP32
+      if (status_relay !== undefined && status_relay !== null) {
+        finalRelayStatus = status_relay;
+      } else {
+        finalRelayStatus = dbRelay;
+      }
+    }
 
     // PROTEKSI BATAS DAYA
     if (daya !== undefined && daya !== null) {
