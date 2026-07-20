@@ -206,8 +206,47 @@ const getHistoryDataListrik = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result.rows });
 });
 
+const getMonthlyHistoryDataListrik = asyncHandler(async (req, res) => {
+  const { deviceId, rumahId, months = 6 } = req.query;
+
+  const params = [];
+  const conditions = [];
+
+  if (deviceId) {
+    params.push(deviceId);
+    conditions.push(`dl.device_id = $${params.length}`);
+  }
+
+  if (rumahId) {
+    params.push(rumahId);
+    conditions.push(`p.rumah_id = $${params.length}`);
+  }
+
+  // Define how many months back we want to go
+  params.push(months);
+  conditions.push(`dl.waktu_baca >= NOW() - INTERVAL '$${params.length} months'`);
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const result = await pool.query(
+    `SELECT 
+      to_char(date_trunc('month', dl.waktu_baca), 'Mon') as month,
+      date_trunc('month', dl.waktu_baca) as month_date,
+      MAX(dl.energi) - MIN(dl.energi) as energy
+     FROM data_listrik dl
+     JOIN perangkat p ON p.device_id = dl.device_id
+     ${where}
+     GROUP BY month_date, month
+     ORDER BY month_date ASC`,
+    params
+  );
+
+  res.json({ success: true, data: result.rows });
+});
+
 module.exports = {
   createDataListrik,
   getLatestDataListrik,
   getHistoryDataListrik,
+  getMonthlyHistoryDataListrik,
 };
