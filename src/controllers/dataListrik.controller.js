@@ -223,8 +223,8 @@ const getMonthlyHistoryDataListrik = asyncHandler(async (req, res) => {
   }
 
   // Define how many months back we want to go
-  params.push(months);
-  conditions.push(`dl.waktu_baca >= NOW() - INTERVAL '$${params.length} months'`);
+  const safeMonths = parseInt(months, 10) || 6;
+  conditions.push(`dl.waktu_baca >= NOW() - INTERVAL '${safeMonths} months'`);
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
