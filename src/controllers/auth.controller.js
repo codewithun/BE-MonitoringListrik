@@ -7,6 +7,7 @@ const publicUserColumns = `
   email,
   role,
   aktif,
+  avatar,
   created_at,
   updated_at
 `;

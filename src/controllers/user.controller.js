@@ -9,6 +9,7 @@ const getUsers = asyncHandler(async (req, res) => {
       p.email,
       p.role,
       p.aktif,
+      p.avatar,
       p.created_at,
       p.updated_at,
       COALESCE(
@@ -38,6 +39,7 @@ const createUser = asyncHandler(async (req, res) => {
     password,
     role = 'user',
     aktif = true,
+    avatar,
     rumah_id,
   } = req.body;
 
@@ -62,10 +64,10 @@ const createUser = asyncHandler(async (req, res) => {
     await client.query('BEGIN');
 
     const result = await client.query(
-      `INSERT INTO pengguna (username, email, password_hash, role, aktif)
-       VALUES ($1, $2, crypt($3, gen_salt('bf')), $4, $5)
-       RETURNING id, username, email, role, aktif, created_at, updated_at`,
-      [finalUsername, finalEmail, finalPassword, finalRole, Boolean(aktif)]
+      `INSERT INTO pengguna (username, email, password_hash, role, aktif, avatar)
+       VALUES ($1, $2, crypt($3, gen_salt('bf')), $4, $5, $6)
+       RETURNING id, username, email, role, aktif, avatar, created_at, updated_at`,
+      [finalUsername, finalEmail, finalPassword, finalRole, Boolean(aktif), avatar]
     );
 
     if (rumah_id) {
@@ -97,6 +99,7 @@ const updateUser = asyncHandler(async (req, res) => {
     password,
     role,
     aktif,
+    avatar,
     rumah_id,
   } = req.body;
 
@@ -132,10 +135,11 @@ const updateUser = asyncHandler(async (req, res) => {
           WHEN $5::text IS NULL THEN password_hash
           ELSE crypt($5, gen_salt('bf'))
         END,
+        avatar = COALESCE($6, avatar),
         updated_at = NOW()
-       WHERE id = $6
-       RETURNING id, username, email, role, aktif, created_at, updated_at`,
-      [finalUsername, finalEmail, finalRole, aktif, finalPassword, id]
+       WHERE id = $7
+       RETURNING id, username, email, role, aktif, avatar, created_at, updated_at`,
+      [finalUsername, finalEmail, finalRole, aktif, finalPassword, avatar, id]
     );
 
     if (result.rowCount === 0) {
