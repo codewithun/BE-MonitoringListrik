@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS pengguna (
   role VARCHAR(20) NOT NULL CHECK (role IN ('admin','user')),
   aktif BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW(),
+  reset_otp VARCHAR(6),
+  reset_otp_expires_at TIMESTAMP
 );
 
 -- =====================================================
