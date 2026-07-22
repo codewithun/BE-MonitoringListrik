@@ -84,7 +84,43 @@ const login = asyncHandler(async (req, res) => {
   });
 });
 
+const resetPassword = asyncHandler(async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const username = String(req.body.username || '').trim();
+  const newPassword = String(req.body.newPassword || '');
+
+  if (!email || !username || !newPassword) {
+    res.status(400);
+    throw new Error('email, username, dan password baru wajib diisi');
+  }
+
+  if (newPassword.length < 8) {
+    res.status(400);
+    throw new Error('password baru minimal 8 karakter');
+  }
+
+  const result = await pool.query(
+    `UPDATE pengguna 
+     SET password_hash = crypt($1, gen_salt('bf')),
+         updated_at = CURRENT_TIMESTAMP
+     WHERE email = $2 AND username = $3 AND aktif = TRUE
+     RETURNING id`,
+    [newPassword, email, username]
+  );
+
+  if (result.rowCount === 0) {
+    res.status(404);
+    throw new Error('Data email atau username salah, atau akun tidak aktif');
+  }
+
+  res.json({
+    success: true,
+    message: 'Password berhasil diubah, silakan login dengan password baru',
+  });
+});
+
 module.exports = {
   login,
   register,
+  resetPassword,
 };
