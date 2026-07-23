@@ -159,7 +159,7 @@ const resetPasswordWithOtp = asyncHandler(async (req, res) => {
     throw new Error('Kode OTP salah atau akun tidak ditemukan');
   }
 
-  if (new Date() > result.rows[0].reset_otp_expires_at) {
+  if (result.rows[0].reset_otp_expires_at !== null && new Date() > result.rows[0].reset_otp_expires_at) {
     res.status(400);
     throw new Error('Kode OTP sudah kedaluwarsa');
   }
@@ -180,9 +180,46 @@ const resetPasswordWithOtp = asyncHandler(async (req, res) => {
   });
 });
 
+const verifyResetOtp = asyncHandler(async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const otp = String(req.body.otp || '').trim();
+
+  if (!email || !otp) {
+    res.status(400);
+    throw new Error('Email dan OTP wajib diisi');
+  }
+
+  const result = await pool.query(
+    'SELECT id, reset_otp_expires_at FROM pengguna WHERE email = $1 AND reset_otp = $2 AND aktif = TRUE',
+    [email, otp]
+  );
+
+  if (result.rowCount === 0) {
+    res.status(400);
+    throw new Error('Kode OTP salah atau akun tidak ditemukan');
+  }
+
+  if (result.rows[0].reset_otp_expires_at !== null && new Date() > result.rows[0].reset_otp_expires_at) {
+    res.status(400);
+    throw new Error('Kode OTP sudah kedaluwarsa');
+  }
+
+  // Remove expiration so user has unlimited time to enter new password
+  await pool.query(
+    'UPDATE pengguna SET reset_otp_expires_at = NULL WHERE id = $1',
+    [result.rows[0].id]
+  );
+
+  res.json({
+    success: true,
+    message: 'OTP terverifikasi. Waktu pembuatan password tidak dibatasi.',
+  });
+});
+
 module.exports = {
   login,
   register,
   requestResetOtp,
+  verifyResetOtp,
   resetPasswordWithOtp,
 };
