@@ -9,6 +9,7 @@ monthly result in prediksi_bulanan.
 from __future__ import annotations
 
 import argparse
+import calendar
 import json
 import math
 import os
@@ -193,11 +194,11 @@ def forecast_house(
     sequence_length: int,
     epochs: int,
     batch_size: int,
-) -> PredictionResult | None:
+) -> list[PredictionResult]:
     house_frame = add_time_features(house_frame).sort_values("tanggal")
 
     if len(house_frame) <= sequence_length + 2:
-        return None
+        return []
 
     feature_columns = [
         "energi_kwh",
@@ -258,11 +259,31 @@ def forecast_house(
     accuracy = max(0, 100 - (mape * 100))
 
     last_sequence = scaled_values[-sequence_length:].copy()
-    forecast_energy: list[float] = []
+    
     last_date = house_frame["tanggal"].max().date()
     context = house_frame.iloc[-1]
+    
+    current_year = last_date.year
+    current_month = last_date.month
+    
+    _, days_in_current_month = calendar.monthrange(current_year, current_month)
+    days_left_in_current_month = days_in_current_month - last_date.day
+    
+    if current_month == 12:
+        next_month = 1
+        next_year = current_year + 1
+    else:
+        next_month = current_month + 1
+        next_year = current_year
+        
+    _, days_in_next_month = calendar.monthrange(next_year, next_month)
+    
+    total_days_to_predict = days_left_in_current_month + days_in_next_month
+    
+    forecast_current_month: list[float] = []
+    forecast_next_month: list[float] = []
 
-    for step in range(1, horizon_days + 1):
+    for step in range(1, total_days_to_predict + 1):
         predicted_scaled_energy = float(
             model.predict(last_sequence[np.newaxis, :, :], verbose=0)[0][0]
         )
@@ -304,23 +325,47 @@ def forecast_house(
             )[0],
         )
 
-        forecast_energy.append(float(energy_kwh))
+        if step <= days_left_in_current_month:
+            forecast_current_month.append(float(energy_kwh))
+        else:
+            forecast_next_month.append(float(energy_kwh))
+            
         last_sequence = np.vstack([last_sequence[1:], next_row])
 
-    target_month_date = last_date + timedelta(days=horizon_days)
-    predicted_kwh = float(np.sum(forecast_energy))
+    # Hitung pemakaian aktual bulan berjalan sejauh ini
+    current_month_frame = house_frame[
+        (house_frame["tanggal"].dt.year == current_year) &
+        (house_frame["tanggal"].dt.month == current_month)
+    ]
+    actual_current_month_kwh = float(current_month_frame["energi_kwh"].sum())
 
-    return PredictionResult(
-        rumah_id=str(context["rumah_id"]),
-        nama_rumah=str(context["nama_rumah"]),
-        bulan=target_month_date.month,
-        tahun=target_month_date.year,
-        prediksi_energi_kwh=round(predicted_kwh, 4),
-        prediksi_biaya=round(predicted_kwh * tariff_price, 2),
-        akurasi=round(float(accuracy), 2),
-        training_days=len(house_frame),
-        jumlah_perangkat=int(context["jumlah_perangkat"]),
-    )
+    predicted_current_kwh = actual_current_month_kwh + float(np.sum(forecast_current_month))
+    predicted_next_kwh = float(np.sum(forecast_next_month))
+
+    return [
+        PredictionResult(
+            rumah_id=str(context["rumah_id"]),
+            nama_rumah=str(context["nama_rumah"]),
+            bulan=current_month,
+            tahun=current_year,
+            prediksi_energi_kwh=round(predicted_current_kwh, 4),
+            prediksi_biaya=round(predicted_current_kwh * tariff_price, 2),
+            akurasi=round(float(accuracy), 2),
+            training_days=len(house_frame),
+            jumlah_perangkat=int(context["jumlah_perangkat"]),
+        ),
+        PredictionResult(
+            rumah_id=str(context["rumah_id"]),
+            nama_rumah=str(context["nama_rumah"]),
+            bulan=next_month,
+            tahun=next_year,
+            prediksi_energi_kwh=round(predicted_next_kwh, 4),
+            prediksi_biaya=round(predicted_next_kwh * tariff_price, 2),
+            akurasi=round(float(accuracy), 2),
+            training_days=len(house_frame),
+            jumlah_perangkat=int(context["jumlah_perangkat"]),
+        )
+    ]
 
 
 def inverse_energy_values(
@@ -375,7 +420,7 @@ def run(args: argparse.Namespace) -> list[PredictionResult]:
 
         for rumah_id, house_frame in daily_usage.groupby("rumah_id"):
             tariff_price = tariff_map.get(str(rumah_id), args.default_tariff)
-            prediction = forecast_house(
+            predictions = forecast_house(
                 house_frame=house_frame,
                 tariff_price=tariff_price,
                 horizon_days=args.horizon_days,
@@ -384,13 +429,14 @@ def run(args: argparse.Namespace) -> list[PredictionResult]:
                 batch_size=args.batch_size,
             )
 
-            if not prediction:
+            if not predictions:
                 continue
 
-            results.append(prediction)
+            for prediction in predictions:
+                results.append(prediction)
 
-            if not args.dry_run:
-                save_prediction(connection, prediction)
+                if not args.dry_run:
+                    save_prediction(connection, prediction)
 
         return results
     finally:
