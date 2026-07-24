@@ -44,6 +44,45 @@ function startScheduler() {
           `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
           [device.device_id, turnOn, 'api'] // treated as system api action
         );
+
+        // Fetch user for notification
+        const deviceUser = await pool.query(
+          `SELECT a.pengguna_id FROM perangkat p
+           JOIN akses_rumah a ON p.rumah_id = a.rumah_id
+           WHERE p.id = $1`,
+          [device.id]
+        );
+
+        if (deviceUser.rowCount > 0 && deviceUser.rows[0].pengguna_id) {
+          const webpush = require('../config/webpush');
+          const userId = deviceUser.rows[0].pengguna_id;
+          
+          try {
+            const subs = await pool.query('SELECT * FROM push_subscriptions WHERE user_id = $1', [userId]);
+            for (const sub of subs.rows) {
+              const pushSubscription = {
+                endpoint: sub.endpoint,
+                keys: {
+                  p256dh: sub.keys_p256dh,
+                  auth: sub.keys_auth
+                }
+              };
+              try {
+                await webpush.sendNotification(pushSubscription, JSON.stringify({
+                  title: '⏰ Jadwal Berjalan!',
+                  body: `Perangkat ${device.device_id} otomatis diubah menjadi ${turnOn ? 'ON' : 'OFF'}.`,
+                  type: 'schedule'
+                }));
+              } catch (err) {
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                  await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Push scheduling error:', e.message);
+          }
+        }
       }
     } catch (err) {
       console.error('[SCHEDULER] Error running jobs:', err.message);

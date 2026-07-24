@@ -1,4 +1,34 @@
 const pool = require('../config/db');
+const webpush = require('../config/webpush');
+
+// Helper untuk mengirim notifikasi push
+async function sendPushNotification(userId, payload) {
+  try {
+    const result = await pool.query('SELECT * FROM push_subscriptions WHERE user_id = $1', [userId]);
+    for (const sub of result.rows) {
+      const pushSubscription = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: sub.keys_p256dh,
+          auth: sub.keys_auth
+        }
+      };
+      try {
+        await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
+      } catch (err) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          // Subscription expired or invalid, delete it
+          await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+        } else {
+          console.error('Error sending push:', err.message);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error in sendPushNotification:', error.message);
+  }
+}
+
 const asyncHandler = require('../utils/asyncHandler');
 
 async function ensureDeviceExists(deviceId, statusRelay = false) {
@@ -36,13 +66,15 @@ const createDataListrik = asyncHandler(async (req, res) => {
   await ensureDeviceExists(finalDeviceId, Boolean(status_relay));
   let finalRelayStatus = status_relay;
   let deviceRecord = await pool.query(
-    `SELECT batas_daya, batas_daya_aktif, status_relay, updated_at 
-     FROM perangkat WHERE device_id = $1`,
+    `SELECT p.batas_daya, p.batas_daya_aktif, p.status_relay, p.updated_at, a.pengguna_id 
+     FROM perangkat p
+     LEFT JOIN akses_rumah a ON p.rumah_id = a.rumah_id
+     WHERE p.device_id = $1`,
     [finalDeviceId]
   );
 
   if (deviceRecord.rowCount > 0) {
-    const { batas_daya, batas_daya_aktif, status_relay: dbRelay, updated_at } = deviceRecord.rows[0];
+    const { batas_daya, batas_daya_aktif, status_relay: dbRelay, updated_at, pengguna_id } = deviceRecord.rows[0];
     
     // SMART SHIELD (DEBOUNCE): 
     // Cek apakah Web baru saja mengubah status dalam 4 detik terakhir
@@ -72,6 +104,14 @@ const createDataListrik = asyncHandler(async (req, res) => {
           `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
           [finalDeviceId, false, 'alat']
         );
+
+        if (pengguna_id) {
+          await sendPushNotification(pengguna_id, {
+            title: '⚠️ Batas Daya Terlampaui!',
+            body: `Perangkat ${finalDeviceId} menggunakan ${daya}W (Batas: ${batas_daya}W). Relay otomatis dimatikan.`,
+            type: 'power_limit'
+          });
+        }
       }
     }
   }
