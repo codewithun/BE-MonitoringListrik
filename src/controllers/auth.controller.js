@@ -121,11 +121,11 @@ const requestResetOtp = asyncHandler(async (req, res) => {
   console.log(`[DEV ONLY] OTP for ${email} is ${otp}`);
 
   if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-    await sendEmail({
+    sendEmail({
       email,
       subject: 'Kode OTP Reset Password WattWise',
       html,
-    });
+    }).catch(err => console.error('Gagal mengirim email OTP:', err));
   }
 
   res.json({
