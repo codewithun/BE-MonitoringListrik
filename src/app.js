@@ -11,7 +11,12 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: [
+    'http://localhost:3000',
+    'https://wattwise.my.id',
+    'https://www.wattwise.my.id',
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
