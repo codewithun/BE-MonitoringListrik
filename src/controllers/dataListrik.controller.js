@@ -201,6 +201,11 @@ const getHistoryDataListrik = asyncHandler(async (req, res) => {
     page = 1,
   } = req.query;
 
+  // Prevent data leak if deviceId is not provided and user has no devices
+  if (!deviceId || deviceId === 'all') {
+    return res.json({ success: true, data: [], pagination: { total: 0, page: 1, limit: Number(limit) || 200, totalPages: 0 } });
+  }
+
   const params = [];
   const conditions = [];
 
@@ -273,6 +278,11 @@ const getHistoryDataListrik = asyncHandler(async (req, res) => {
 
 const getMonthlyHistoryDataListrik = asyncHandler(async (req, res) => {
   const { deviceId, rumahId, months = 6 } = req.query;
+
+  // Prevent data leak if deviceId is not provided
+  if (!deviceId) {
+    return res.json({ success: true, data: [] });
+  }
 
   const params = [];
   const conditions = [];
