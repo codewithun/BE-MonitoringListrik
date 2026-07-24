@@ -198,12 +198,13 @@ const getHistoryDataListrik = asyncHandler(async (req, res) => {
     start,
     end,
     limit = 200,
+    page = 1,
   } = req.query;
 
   const params = [];
   const conditions = [];
 
-  if (deviceId) {
+  if (deviceId && deviceId !== 'all') {
     params.push(deviceId);
     conditions.push(`dl.device_id = $${params.length}`);
   }
@@ -224,10 +225,25 @@ const getHistoryDataListrik = asyncHandler(async (req, res) => {
   }
 
   const safeLimit = Math.min(Number(limit) || 200, 2000);
-  params.push(safeLimit);
+  const safePage = Math.max(Number(page) || 1, 1);
+  const offset = (safePage - 1) * safeLimit;
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+  // Get total count
+  const countResult = await pool.query(
+    `SELECT COUNT(*)
+     FROM data_listrik dl
+     JOIN perangkat p ON p.device_id = dl.device_id
+     ${where}`,
+    params
+  );
+  
+  const total = parseInt(countResult.rows[0].count, 10);
+  const totalPages = Math.ceil(total / safeLimit);
+
+  // Get paginated data
+  const dataParams = [...params, safeLimit, offset];
   const result = await pool.query(
     `SELECT
       dl.*,
@@ -239,11 +255,20 @@ const getHistoryDataListrik = asyncHandler(async (req, res) => {
      LEFT JOIN rumah r ON r.id = p.rumah_id
      ${where}
      ORDER BY dl.waktu_baca DESC
-     LIMIT $${params.length}`,
-    params
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    dataParams
   );
 
-  res.json({ success: true, data: result.rows });
+  res.json({ 
+    success: true, 
+    data: result.rows,
+    pagination: {
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages
+    }
+  });
 });
 
 const getMonthlyHistoryDataListrik = asyncHandler(async (req, res) => {
