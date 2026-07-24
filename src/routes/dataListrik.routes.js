@@ -5,13 +5,11 @@ const {
   getHistoryDataListrik,
   getMonthlyHistoryDataListrik,
 } = require('../controllers/dataListrik.controller');
-const { protect } = require('../middleware/auth');
-
 const router = express.Router();
 
-router.post('/', createDataListrik); // IoT endpoint without standard user auth
-router.get('/latest', protect, getLatestDataListrik);
-router.get('/history', protect, getHistoryDataListrik);
-router.get('/history-monthly', protect, getMonthlyHistoryDataListrik);
+router.post('/', createDataListrik); 
+router.get('/latest', getLatestDataListrik);
+router.get('/history', getHistoryDataListrik);
+router.get('/history-monthly', getMonthlyHistoryDataListrik);
 
 module.exports = router;
