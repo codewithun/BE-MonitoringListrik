@@ -29,6 +29,9 @@ async function sendPushNotification(userId, payload) {
   }
 }
 
+// In-memory cache to prevent push notification spam (10 minutes cooldown)
+const lastWarningSentMap = new Map();
+
 const asyncHandler = require('../utils/asyncHandler');
 
 async function ensureDeviceExists(deviceId, statusRelay = false) {
@@ -95,22 +98,47 @@ const createDataListrik = asyncHandler(async (req, res) => {
       }
     }
 
-    // PROTEKSI BATAS DAYA
+    // PROTEKSI BATAS DAYA & WARNING 90%
     if (daya !== undefined && daya !== null) {
-      if (batas_daya_aktif && Number(daya) > Number(batas_daya) && finalRelayStatus !== false) {
-        finalRelayStatus = false; 
+      if (batas_daya_aktif && Number(batas_daya) > 0) {
+        const numDaya = Number(daya);
+        const numBatas = Number(batas_daya);
 
-        await pool.query(
-          `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
-          [finalDeviceId, false, 'alat']
-        );
+        // 1. Cek Batas 100% (Cut-off)
+        if (numDaya > numBatas && finalRelayStatus !== false) {
+          finalRelayStatus = false; 
 
-        if (pengguna_id) {
-          await sendPushNotification(pengguna_id, {
-            title: '⚠️ Batas Daya Terlampaui!',
-            body: `Perangkat ${finalDeviceId} menggunakan ${daya}W (Batas: ${batas_daya}W). Relay otomatis dimatikan.`,
-            type: 'power_limit'
-          });
+          await pool.query(
+            `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
+            [finalDeviceId, false, 'alat']
+          );
+
+          if (pengguna_id) {
+            await sendPushNotification(pengguna_id, {
+              title: '⚠️ Batas Daya Terlampaui!',
+              body: `Perangkat ${finalDeviceId} menggunakan ${daya}W (Batas: ${batas_daya}W). Relay otomatis dimatikan.`,
+              type: 'power_limit'
+            });
+          }
+        }
+        // 2. Cek Warning 90% (Hanya notifikasi, relay tidak mati)
+        else if (numDaya >= numBatas * 0.9 && finalRelayStatus !== false) {
+          if (pengguna_id) {
+            const lockKey = `${pengguna_id}_${finalDeviceId}`;
+            const lastSent = lastWarningSentMap.get(lockKey) || 0;
+            const nowTime = Date.now();
+            
+            // Kirim notifikasi maksimal 1 kali setiap 10 menit (600000 ms)
+            if (nowTime - lastSent > 600000) {
+              lastWarningSentMap.set(lockKey, nowTime);
+              // Fire and forget push notification
+              sendPushNotification(pengguna_id, {
+                title: 'Peringatan Batas Daya!',
+                body: `Perangkat ${finalDeviceId} telah mencapai ${daya}W (Batas: ${batas_daya}W).`,
+                type: 'power_limit'
+              }).catch(console.error);
+            }
+          }
         }
       }
     }
