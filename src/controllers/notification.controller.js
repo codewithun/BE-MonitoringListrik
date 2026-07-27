@@ -29,4 +29,17 @@ const subscribe = async (req, res) => {
   }
 };
 
-module.exports = { subscribe };
+const debugPushData = async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, user_id, endpoint FROM push_subscriptions');
+    res.json({
+      success: true,
+      total_subscriptions: result.rowCount,
+      data: result.rows
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+module.exports = { subscribe, debugPushData };
