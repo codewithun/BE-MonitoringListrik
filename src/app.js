@@ -10,13 +10,30 @@ const errorHandler = require('./middleware/errorHandler');
 const app = express();
 
 app.use(helmet());
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://wattwise.my.id',
+  'https://www.wattwise.my.id',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://wattwise.my.id',
-    'https://www.wattwise.my.id',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    // Allow if in exact list
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
+    // Allow any Vercel preview URL
+    if (origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Otherwise block
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
