@@ -1,8 +1,15 @@
 const webpush = require('web-push');
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  let subject = process.env.VAPID_SUBJECT || 'mailto:admin@monitoring-listrik.local';
+  
+  // Jika subject adalah email murni (tanpa mailto: dan tanpa http://), tambahkan mailto:
+  if (!subject.startsWith('mailto:') && !subject.startsWith('http')) {
+    subject = 'mailto:' + subject;
+  }
+
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:admin@monitoring-listrik.local',
+    subject,
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );
