@@ -181,3 +181,15 @@ SELECT
   r.nama_rumah
 FROM perangkat p
 LEFT JOIN rumah r ON p.rumah_id = r.id;
+
+-- =====================================================
+-- PUSH NOTIFICATIONS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES pengguna(id) ON DELETE CASCADE,
+  endpoint TEXT UNIQUE NOT NULL,
+  keys_p256dh TEXT,
+  keys_auth TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
