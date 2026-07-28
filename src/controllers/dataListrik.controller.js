@@ -81,10 +81,8 @@ const createDataListrik = asyncHandler(async (req, res) => {
   let finalRelayStatus = status_relay;
   let forceUpdateWebTime = false;
   let deviceRecord = await pool.query(
-    `SELECT p.batas_daya, p.batas_daya_aktif, p.status_relay, p.updated_at, 
-            r.user_id as owner_id, a.pengguna_id as access_id 
+    `SELECT p.batas_daya, p.batas_daya_aktif, p.status_relay, p.updated_at, a.pengguna_id as access_id 
      FROM perangkat p
-     LEFT JOIN rumah r ON p.rumah_id = r.id
      LEFT JOIN akses_rumah a ON p.rumah_id = a.rumah_id
      WHERE p.device_id = $1`,
     [finalDeviceId]
@@ -93,10 +91,9 @@ const createDataListrik = asyncHandler(async (req, res) => {
   if (deviceRecord.rowCount > 0) {
     const { batas_daya, batas_daya_aktif, status_relay: dbRelay, updated_at } = deviceRecord.rows[0];
     
-    // Kumpulkan semua ID pengguna yang berhak mendapat notifikasi (pemilik rumah + anggota)
+    // Kumpulkan semua ID pengguna yang berhak mendapat notifikasi (semua anggota rumah)
     const userIdsToNotify = new Set();
     deviceRecord.rows.forEach(row => {
-      if (row.owner_id) userIdsToNotify.add(row.owner_id);
       if (row.access_id) userIdsToNotify.add(row.access_id);
     });
     
