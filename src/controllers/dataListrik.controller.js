@@ -118,12 +118,14 @@ const createDataListrik = asyncHandler(async (req, res) => {
 
     // PROTEKSI BATAS DAYA & WARNING 90%
     if (daya !== undefined && daya !== null) {
+      console.log(`[BATAS DAYA] device=${finalDeviceId} daya=${daya} batas_daya_aktif=${batas_daya_aktif} batas_daya=${batas_daya} userCount=${userIdsToNotify.size}`);
       if (batas_daya_aktif && Number(batas_daya) > 0) {
         const numDaya = Number(daya);
         const numBatas = Number(batas_daya);
 
         // 1. Cek Batas 100% (Cut-off)
         if (numDaya >= numBatas && finalRelayStatus !== false) {
+          console.log(`[BATAS DAYA] ⛔ CUTOFF! ${numDaya}W >= ${numBatas}W`);
           finalRelayStatus = false; 
           forceUpdateWebTime = true;
 
@@ -140,25 +142,34 @@ const createDataListrik = asyncHandler(async (req, res) => {
                 type: 'power_limit'
               });
             }
+          } else {
+            console.log('[BATAS DAYA] ⚠️ Tidak ada user penerima notifikasi (userIdsToNotify kosong)');
           }
         }
         // 2. Cek Warning 90% (Hanya notifikasi, relay tidak mati)
         else if (numDaya >= numBatas * 0.9 && finalRelayStatus !== false) {
+          console.log(`[BATAS DAYA] ⚠️ WARNING 90%! ${numDaya}W >= ${numBatas * 0.9}W. userCount=${userIdsToNotify.size}`);
           if (userIdsToNotify.size > 0) {
             for (const uid of userIdsToNotify) {
               const lockKey = `${uid}_${finalDeviceId}`;
               const lastSent = lastWarningSentMap.get(lockKey) || 0;
               const tenMinutes = 10 * 60 * 1000;
+              console.log(`[BATAS DAYA] uid=${uid} lockKey=${lockKey} lastSent=${lastSent} diff=${now - lastSent}ms cooldown=${tenMinutes}ms`);
   
               if (now - lastSent > tenMinutes) {
+                console.log(`[BATAS DAYA] ✅ Mengirim push ke uid=${uid}`);
                 await sendPushNotification(uid, {
                   title: '⚠️ Peringatan Batas Daya!',
                   body: `Perangkat ${finalDeviceId} menggunakan ${daya}W (Batas: ${batas_daya}W).`,
                   type: 'power_limit'
                 });
                 lastWarningSentMap.set(lockKey, now);
+              } else {
+                console.log(`[BATAS DAYA] ⏱️ Cooldown aktif, skip notifikasi untuk uid=${uid}`);
               }
             }
+          } else {
+            console.log('[BATAS DAYA] ⚠️ Tidak ada user penerima notifikasi (userIdsToNotify kosong)');
           }
         }
       }
