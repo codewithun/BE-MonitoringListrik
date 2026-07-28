@@ -6,10 +6,10 @@ async function sendPushNotification(userId, payload) {
   try {
     const result = await pool.query('SELECT * FROM push_subscriptions WHERE user_id = $1', [userId]);
     console.log(`[PUSH] Mencoba mengirim ke ${result.rowCount} subscription untuk user ${userId}...`);
-    
+
     let successCount = 0;
     let failCount = 0;
-    
+
     for (const sub of result.rows) {
       const pushSubscription = {
         endpoint: sub.endpoint,
@@ -33,7 +33,7 @@ async function sendPushNotification(userId, payload) {
         }
       }
     }
-    
+
     console.log(`[PUSH] Selesai. Berhasil: ${successCount}, Gagal: ${failCount}`);
   } catch (error) {
     console.error('[PUSH] Error in sendPushNotification:', error.message);
@@ -81,7 +81,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
   let finalRelayStatus = status_relay;
   let forceUpdateWebTime = false;
   let deviceRecord = await pool.query(
-    `SELECT p.batas_daya, p.batas_daya_aktif, p.status_relay, p.updated_at, a.pengguna_id as access_id 
+    `SELECT p.batas_daya, p.batas_daya_aktif, p.status_relay, p.updated_at, p.nama_perangkat, a.pengguna_id as access_id 
      FROM perangkat p
      LEFT JOIN akses_rumah a ON p.rumah_id = a.rumah_id
      WHERE p.device_id = $1`,
@@ -90,13 +90,14 @@ const createDataListrik = asyncHandler(async (req, res) => {
 
   if (deviceRecord.rowCount > 0) {
     const { batas_daya, batas_daya_aktif, status_relay: dbRelay, updated_at } = deviceRecord.rows[0];
-    
+    const deviceName = deviceRecord.rows[0].nama_perangkat || finalDeviceId;
+
     // Kumpulkan semua ID pengguna yang berhak mendapat notifikasi (semua anggota rumah)
     const userIdsToNotify = new Set();
     deviceRecord.rows.forEach(row => {
       if (row.access_id) userIdsToNotify.add(row.access_id);
     });
-    
+
     // SMART SHIELD (DEBOUNCE): 
     // Cek apakah Web baru saja mengubah status dalam 4 detik terakhir
     const lastUpdate = new Date(updated_at).getTime();
@@ -126,7 +127,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
         // 1. Cek Batas 100% (Cut-off)
         if (numDaya >= numBatas && finalRelayStatus !== false) {
           console.log(`[BATAS DAYA] ⛔ CUTOFF! ${numDaya}W >= ${numBatas}W`);
-          finalRelayStatus = false; 
+          finalRelayStatus = false;
           forceUpdateWebTime = true;
 
           await pool.query(
@@ -138,7 +139,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
             for (const uid of userIdsToNotify) {
               await sendPushNotification(uid, {
                 title: '⚠️ Batas Daya Terlampaui!',
-                body: `Perangkat ${finalDeviceId} menggunakan ${daya}W (Batas: ${batas_daya}W). Relay otomatis dimatikan.`,
+                body: `${deviceName} menggunakan ${daya}W (Batas: ${batas_daya}W). Relay otomatis dimatikan.`,
                 type: 'power_limit'
               });
             }
@@ -155,12 +156,12 @@ const createDataListrik = asyncHandler(async (req, res) => {
               const lastSent = lastWarningSentMap.get(lockKey) || 0;
               const tenMinutes = 10 * 60 * 1000;
               console.log(`[BATAS DAYA] uid=${uid} lockKey=${lockKey} lastSent=${lastSent} diff=${now - lastSent}ms cooldown=${tenMinutes}ms`);
-  
+
               if (now - lastSent > tenMinutes) {
                 console.log(`[BATAS DAYA] ✅ Mengirim push ke uid=${uid}`);
                 await sendPushNotification(uid, {
-                  title: '⚠️ Peringatan Batas Daya!',
-                  body: `Perangkat ${finalDeviceId} menggunakan ${daya}W (Batas: ${batas_daya}W).`,
+                  title: 'Peringatan Batas Daya!',
+                  body: `${deviceName} menggunakan ${daya}W (Batas: ${batas_daya}W).`,
                   type: 'power_limit'
                 });
                 lastWarningSentMap.set(lockKey, now);
@@ -211,8 +212,8 @@ const createDataListrik = asyncHandler(async (req, res) => {
     }
   }
 
-  res.status(201).json({ 
-    success: true, 
+  res.status(201).json({
+    success: true,
     data: result.rows[0]
   });
 });
@@ -308,7 +309,7 @@ const getHistoryDataListrik = asyncHandler(async (req, res) => {
      ${where}`,
     params
   );
-  
+
   const total = parseInt(countResult.rows[0].count, 10);
   const totalPages = Math.ceil(total / safeLimit);
 
@@ -329,8 +330,8 @@ const getHistoryDataListrik = asyncHandler(async (req, res) => {
     dataParams
   );
 
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     data: result.rows,
     pagination: {
       total,
