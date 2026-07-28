@@ -81,15 +81,24 @@ const createDataListrik = asyncHandler(async (req, res) => {
   let finalRelayStatus = status_relay;
   let forceUpdateWebTime = false;
   let deviceRecord = await pool.query(
-    `SELECT p.batas_daya, p.batas_daya_aktif, p.status_relay, p.updated_at, a.pengguna_id 
+    `SELECT p.batas_daya, p.batas_daya_aktif, p.status_relay, p.updated_at, 
+            r.user_id as owner_id, a.pengguna_id as access_id 
      FROM perangkat p
+     LEFT JOIN rumah r ON p.rumah_id = r.id
      LEFT JOIN akses_rumah a ON p.rumah_id = a.rumah_id
      WHERE p.device_id = $1`,
     [finalDeviceId]
   );
 
   if (deviceRecord.rowCount > 0) {
-    const { batas_daya, batas_daya_aktif, status_relay: dbRelay, updated_at, pengguna_id } = deviceRecord.rows[0];
+    const { batas_daya, batas_daya_aktif, status_relay: dbRelay, updated_at } = deviceRecord.rows[0];
+    
+    // Kumpulkan semua ID pengguna yang berhak mendapat notifikasi (pemilik rumah + anggota)
+    const userIdsToNotify = new Set();
+    deviceRecord.rows.forEach(row => {
+      if (row.owner_id) userIdsToNotify.add(row.owner_id);
+      if (row.access_id) userIdsToNotify.add(row.access_id);
+    });
     
     // SMART SHIELD (DEBOUNCE): 
     // Cek apakah Web baru saja mengubah status dalam 4 detik terakhir
@@ -126,30 +135,32 @@ const createDataListrik = asyncHandler(async (req, res) => {
             [finalDeviceId, false, 'alat']
           );
 
-          if (pengguna_id) {
-            await sendPushNotification(pengguna_id, {
-              title: '⚠️ Batas Daya Terlampaui!',
-              body: `Perangkat ${finalDeviceId} menggunakan ${daya}W (Batas: ${batas_daya}W). Relay otomatis dimatikan.`,
-              type: 'power_limit'
-            });
+          if (userIdsToNotify.size > 0) {
+            for (const uid of userIdsToNotify) {
+              await sendPushNotification(uid, {
+                title: '⚠️ Batas Daya Terlampaui!',
+                body: `Perangkat ${finalDeviceId} menggunakan ${daya}W (Batas: ${batas_daya}W). Relay otomatis dimatikan.`,
+                type: 'power_limit'
+              });
+            }
           }
         }
         // 2. Cek Warning 90% (Hanya notifikasi, relay tidak mati)
         else if (numDaya >= numBatas * 0.9 && finalRelayStatus !== false) {
-          if (pengguna_id) {
-            const lockKey = `${pengguna_id}_${finalDeviceId}`;
-            const lastSent = lastWarningSentMap.get(lockKey) || 0;
-            const nowTime = Date.now();
-            
-            // Kirim notifikasi maksimal 1 kali setiap 10 menit (600000 ms)
-            if (nowTime - lastSent > 600000) {
-              lastWarningSentMap.set(lockKey, nowTime);
-              // Fire and forget push notification
-              sendPushNotification(pengguna_id, {
-                title: 'Peringatan Batas Daya!',
-                body: `Perangkat ${finalDeviceId} telah mencapai ${daya}W (Batas: ${batas_daya}W).`,
-                type: 'power_limit'
-              }).catch(console.error);
+          if (userIdsToNotify.size > 0) {
+            for (const uid of userIdsToNotify) {
+              const lockKey = `${uid}_${finalDeviceId}`;
+              const lastSent = lastWarningSentMap.get(lockKey) || 0;
+              const tenMinutes = 10 * 60 * 1000;
+  
+              if (now - lastSent > tenMinutes) {
+                await sendPushNotification(uid, {
+                  title: '⚠️ Peringatan Batas Daya!',
+                  body: `Perangkat ${finalDeviceId} menggunakan ${daya}W (Batas: ${batas_daya}W).`,
+                  type: 'power_limit'
+                });
+                lastWarningSentMap.set(lockKey, now);
+              }
             }
           }
         }
