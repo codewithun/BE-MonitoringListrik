@@ -5,6 +5,11 @@ const webpush = require('../config/webpush');
 async function sendPushNotification(userId, payload) {
   try {
     const result = await pool.query('SELECT * FROM push_subscriptions WHERE user_id = $1', [userId]);
+    console.log(`[PUSH] Mencoba mengirim ke ${result.rowCount} subscription untuk user ${userId}...`);
+    
+    let successCount = 0;
+    let failCount = 0;
+    
     for (const sub of result.rows) {
       const pushSubscription = {
         endpoint: sub.endpoint,
@@ -15,17 +20,23 @@ async function sendPushNotification(userId, payload) {
       };
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
+        successCount++;
+        console.log(`[PUSH] ✅ Berhasil terkirim ke endpoint: ${sub.endpoint.substring(0, 60)}...`);
       } catch (err) {
+        failCount++;
         if (err.statusCode === 410 || err.statusCode === 404) {
           // Subscription expired or invalid, delete it
           await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+          console.warn(`[PUSH] ⚠️ Subscription kedaluwarsa (${err.statusCode}), sudah dihapus: ${sub.endpoint.substring(0, 60)}...`);
         } else {
-          console.error('Error sending push:', err.message);
+          console.error(`[PUSH] ❌ Gagal kirim (status ${err.statusCode}): ${err.message}`);
         }
       }
     }
+    
+    console.log(`[PUSH] Selesai. Berhasil: ${successCount}, Gagal: ${failCount}`);
   } catch (error) {
-    console.error('Error in sendPushNotification:', error.message);
+    console.error('[PUSH] Error in sendPushNotification:', error.message);
   }
 }
 
