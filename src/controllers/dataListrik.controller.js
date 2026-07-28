@@ -68,6 +68,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
 
   await ensureDeviceExists(finalDeviceId, Boolean(status_relay));
   let finalRelayStatus = status_relay;
+  let forceUpdateWebTime = false;
   let deviceRecord = await pool.query(
     `SELECT p.batas_daya, p.batas_daya_aktif, p.status_relay, p.updated_at, a.pengguna_id 
      FROM perangkat p
@@ -105,8 +106,9 @@ const createDataListrik = asyncHandler(async (req, res) => {
         const numBatas = Number(batas_daya);
 
         // 1. Cek Batas 100% (Cut-off)
-        if (numDaya > numBatas && finalRelayStatus !== false) {
+        if (numDaya >= numBatas && finalRelayStatus !== false) {
           finalRelayStatus = false; 
+          forceUpdateWebTime = true;
 
           await pool.query(
             `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
@@ -162,12 +164,21 @@ const createDataListrik = asyncHandler(async (req, res) => {
   );
 
   if (typeof finalRelayStatus === 'boolean') {
-    await pool.query(
-      `UPDATE perangkat
-       SET status_relay = $1, status_online = TRUE, terakhir_online = NOW()
-       WHERE device_id = $2`,
-      [finalRelayStatus, finalDeviceId]
-    );
+    if (forceUpdateWebTime) {
+      await pool.query(
+        `UPDATE perangkat
+         SET status_relay = $1, status_online = TRUE, terakhir_online = NOW(), updated_at = NOW()
+         WHERE device_id = $2`,
+        [finalRelayStatus, finalDeviceId]
+      );
+    } else {
+      await pool.query(
+        `UPDATE perangkat
+         SET status_relay = $1, status_online = TRUE, terakhir_online = NOW()
+         WHERE device_id = $2`,
+        [finalRelayStatus, finalDeviceId]
+      );
+    }
   }
 
   res.status(201).json({ 
