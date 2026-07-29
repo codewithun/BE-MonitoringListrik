@@ -138,7 +138,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
           if (userIdsToNotify.size > 0) {
             for (const uid of userIdsToNotify) {
               await sendPushNotification(uid, {
-                title: '⚠️ Batas Daya Terlampaui!',
+                title: 'Batas Daya Terlampaui!',
                 body: `${deviceName} menggunakan ${daya}W (Batas: ${batas_daya}W). Relay otomatis dimatikan.`,
                 type: 'power_limit'
               });
