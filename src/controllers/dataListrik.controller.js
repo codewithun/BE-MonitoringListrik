@@ -132,7 +132,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
 
           await pool.query(
             `INSERT INTO log_relay (device_id, status_relay, sumber) VALUES ($1, $2, $3)`,
-            [finalDeviceId, false, 'alat']
+            [finalDeviceId, false, 'api']
           );
 
           if (userIdsToNotify.size > 0) {
