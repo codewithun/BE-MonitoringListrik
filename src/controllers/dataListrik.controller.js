@@ -102,7 +102,7 @@ const createDataListrik = asyncHandler(async (req, res) => {
     // Cek apakah Web baru saja mengubah status dalam 4 detik terakhir
     const lastUpdate = new Date(updated_at).getTime();
     const now = new Date().getTime();
-    const isWebRecentlyUpdated = (now - lastUpdate) < 4000;
+    const isWebRecentlyUpdated = (now - lastUpdate) < 15000;
 
     if (isWebRecentlyUpdated) {
       // Jika web baru saja mengubahnya, ABAIKAN status_relay dari ESP32 untuk menghindari Race Condition

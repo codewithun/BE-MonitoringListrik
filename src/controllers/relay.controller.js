@@ -14,7 +14,7 @@ async function updateRelay(deviceId, relay, sumber) {
       const now = new Date().getTime();
       
       // Jika web baru saja mengubahnya dalam 4 detik terakhir, abaikan request dari ESP32
-      if (now - lastUpdate < 4000) {
+      if (now - lastUpdate < 15000) {
         const result = await pool.query(
           `UPDATE perangkat
            SET status_online = TRUE, terakhir_online = NOW()
