@@ -214,7 +214,8 @@ const createDataListrik = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    data: result.rows[0]
+    data: result.rows[0],
+    relay: finalRelayStatus
   });
 });
 
