@@ -92,18 +92,18 @@ const createPerangkat = asyncHandler(async (req, res) => {
 const updatePerangkat = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const {
-    rumah_id,
-    nama_perangkat,
-    nama_beban,
-    status_relay,
-    versi_firmware,
-    status_online,
-    batas_daya,
-    batas_daya_aktif,
-    jadwal_aktif,
-    jadwal_waktu,
-    jadwal_tanggal,
-    jadwal_aksi,
+    rumah_id = null,
+    nama_perangkat = null,
+    nama_beban = null,
+    status_relay = null,
+    versi_firmware = null,
+    status_online = null,
+    batas_daya = null,
+    batas_daya_aktif = null,
+    jadwal_aktif = null,
+    jadwal_waktu = null,
+    jadwal_tanggal = null,
+    jadwal_aksi = null,
   } = req.body;
 
   const result = await pool.query(
