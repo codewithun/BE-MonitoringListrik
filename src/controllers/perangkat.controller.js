@@ -68,8 +68,30 @@ const createPerangkat = asyncHandler(async (req, res) => {
   );
 
   if (existingDevice.rowCount > 0) {
-    res.status(409);
-    throw new Error('ID alat sudah dipakai');
+    const device = existingDevice.rows[0];
+    
+    // Jika perangkat sudah terhubung ke suatu rumah, tolak
+    if (device.rumah_id !== null) {
+      res.status(409);
+      throw new Error('ID alat sudah dipakai');
+    }
+
+    // Jika perangkat belum punya rumah (orphan hasil auto-register), claim perangkat tersebut
+    const updatedResult = await pool.query(
+      `UPDATE perangkat
+       SET rumah_id = $1, nama_perangkat = $2, nama_beban = $3, versi_firmware = COALESCE($4, versi_firmware), updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`,
+      [
+        rumah_id || null,
+        nama_perangkat || `Perangkat ${finalDeviceId}`,
+        nama_beban || null,
+        versi_firmware || null,
+        device.id
+      ]
+    );
+
+    return res.status(201).json({ success: true, data: updatedResult.rows[0] });
   }
 
   const result = await pool.query(
